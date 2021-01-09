@@ -1,0 +1,34 @@
+version: '3'
+networks:
+  traefik_internal:
+    external:
+      name: traefik_internal
+  external_world:
+
+services:
+  sign_back:
+    image: sign_back:custom
+    tty: true
+    networks:
+      - traefik_internal
+      - external_world
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.role == manager
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=traefik_internal"
+        - "traefik.http.routers.sign_back.rule=Host(`sign.localhost`)"
+        - "traefik.http.routers.sign_back.tls.certresolver=le"
+        - "traefik.http.services.sign_back.loadbalancer.passhostheader=true"
+        - "traefik.http.services.sign_back.loadbalancer.server.port=8080"
+    healthcheck:
+      test: exit $$( curl -so /dev/null --fail http://127.0.0.1:8080 && echo 0 || echo 1 )
+      interval: 30s
+      timeout: 1s
+      retries: 1

@@ -22,7 +22,7 @@ from datetime import datetime
 import time
 import codecs
 from pkg_resources import resource_filename
-from bottle import route, request, run
+from bottle import route, request, run, hook, response
 import os
 from os import listdir
 from os.path import isfile, join
@@ -106,7 +106,13 @@ class PDF(object):
             fp.seek(self.byte_range[1] + 1)
             fp.write(codecs.encode(signature, 'hex'))
 
+@hook('after_request')
+def enableCORSAfterRequestHook():
+    response.headers['Access-Control-Allow-Origin'] = '*'
 
+@route('/sign', method='OPTIONS')
+def sign():
+    return ""
 
 @route('/sign', method='POST')
 def sign():
@@ -121,12 +127,15 @@ def sign():
     name = request.forms.name
     phone = request.forms.phone
     if not phone or phone[0:3] != "+41":
+        response.status = 400
         ret["err"] = "Phone isn't valid"
         return ret
     if not data or not data.file:
+        response.status = 400
         ret["err"] = "Can't find proper file"
         return ret
     if not name:
+        response.status = 400
         ret["err"] = "Can't find proper name"
         return ret
     try:
@@ -134,9 +143,11 @@ def sign():
                 phonenumbers.PhoneNumberFormat.INTERNATIONAL)
         phone = phone.replace(" ", "")
         if len(phone) != 12:
+            response.status = 400
             ret["err"] = "Invalid phone number"
             return ret
     except phonenumbers.phonenumberutil.NumberParseException:
+        response.status = 400
         ret["err"] = "Invalid phone number"
         return ret
     pdfname = str(uuid.uuid4())
@@ -148,6 +159,7 @@ def sign():
     try:
         pdf.prepare()
     except:
+        response.status = 400
         ret["err"] = "Invalid pdf file"
         return ret
     dig = pdf.digest().decode()
@@ -196,6 +208,7 @@ def sign():
                         'Content-Type': 'application/json;charset=utf-8'
                        })
     if r.status_code != 200:
+        response.status = 500
         ret["err"] = "Internal error"
         return ret
     sleep(2)
@@ -226,15 +239,18 @@ def sign():
             f = open(pdf.out_filename, "rb")
             data = f.read()
             f.close()
+            response.status = 200
             ret["data"] =  base64.b64encode(data).decode()
             return ret
         elif "Error" in r["SignResponse"]["Result"]["ResultMajor"]:
+            response.status = 405
             if "$" in r["SignResponse"]["Result"]["ResultMessage"]:
                 ret["err"] =  str(r["SignResponse"]["Result"]["ResultMessage"]["$"])
             else:
                 ret["err"] =  "Client refused to sign"
             return ret
         sleep(1)
+    response.status = 500
     return ret
 
 @route('/')

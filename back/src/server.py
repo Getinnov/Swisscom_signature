@@ -14,11 +14,19 @@ import tempfile
 import PyPDF2
 import requests
 import json
+import uuid
 import base64, sys, hashlib
 from time import sleep
+import phonenumbers
+from datetime import datetime
+import time
 import codecs
 from pkg_resources import resource_filename
 from bottle import route, request, run
+import os
+from os import listdir
+from os.path import isfile, join
+
 
 class PDF(object):
     """A container for a PDF file to be signed and the signed version."""
@@ -102,25 +110,46 @@ class PDF(object):
 
 @route('/sign', method='POST')
 def sign():
-    name = request.forms.name
+    now = time.mktime(datetime.now().timetuple())
+    files = [f for f in listdir('./') if isfile(join('./', f))]
+    for i in files:
+        t = os.path.getmtime(i)
+        if now - t > 30:
+            os.remove(i)
+    ret = {"err": None, "data": None}
     data = request.files.file
+    name = request.forms.name
     phone = request.forms.phone
-    given = request.forms.given
-    surname = request.forms.surname
-    email = request.forms.email
     if not phone or phone[0:3] != "+41":
-        return "error"
-    if not name or not data or not data.file:
-        return "error"
-    if not given or not surname or not email:
-        return "error"
-    pdfname = name
+        ret["err"] = "Phone isn't valid"
+        return ret
+    if not data or not data.file:
+        ret["err"] = "Can't find proper file"
+        return ret
+    if not name:
+        ret["err"] = "Can't find proper name"
+        return ret
+    try:
+        phone = phonenumbers.format_number(phonenumbers.parse(phone, 'CH'),
+                phonenumbers.PhoneNumberFormat.INTERNATIONAL)
+        phone = phone.replace(" ", "")
+        if len(phone) != 12:
+            ret["err"] = "Invalid phone number"
+            return ret
+    except phonenumbers.phonenumberutil.NumberParseException:
+        ret["err"] = "Invalid phone number"
+        return ret
+    pdfname = str(uuid.uuid4())
     data.save(pdfname)
     f = open(pdfname, "rb")
     data = f.read()
     f.close()
     pdf = PDF(pdfname)
-    pdf.prepare()
+    try:
+        pdf.prepare()
+    except:
+        ret["err"] = "Invalid pdf file"
+        return ret
     dig = pdf.digest().decode()
     payload = 	{
     	"SignRequest":{
@@ -128,7 +157,7 @@ def sign():
     		"@Profile":"http://ais.swisscom.ch/1.1",
     		"OptionalInputs":{
     			"ClaimedIdentity":{
-    				"Name":"ais-90days-trial-withRAservice:OnDemand-Advanced"
+    				"Name":"SmartCo.SA:OnDemand-Advanced"
     			},
     			"SignatureType":"urn:ietf:rfc:3369",
                 "AddTimestamp": {"@Type": "urn:ietf:rfc:3161"},
@@ -137,7 +166,7 @@ def sign():
     				"urn:oasis:names:tc:dss:1.0:profiles:asynchronousprocessing"
     			],
     			"sc.CertificateRequest":{
-    				"sc.DistinguishedName":f"cn=TEST smartco, givenname={given}, surname={surname}, c=CH, emailaddress={email}",
+    				"sc.DistinguishedName":"template:pseudonym",
     				"sc.StepUpAuthorisation":{
     					"sc.Phone":{
     						"sc.MSISDN": phone[1:],
@@ -167,11 +196,11 @@ def sign():
                         'Content-Type': 'application/json;charset=utf-8'
                        })
     if r.status_code != 200:
-        return "error"
+        ret["err"] = "Internal error"
+        return ret
+    sleep(2)
     sign = json.loads(r.text)['SignResponse']['OptionalOutputs']['async.ResponseID']
-    sleep(5)
     while True:
-        sleep(1)
         r = requests.post('https://ais.swisscom.com/AIS-Server/rs/v1.0/pending',
                            cert=('./back/src/secret/smartco.crt', './back/src/secret/smartco.key'),
                            data=json.dumps({
@@ -180,7 +209,7 @@ def sign():
                                      "@Profile": "http://ais.swisscom.ch/1.1",
                                      "OptionalInputs": {
                                          "ClaimedIdentity": {
-                                             "Name": "ais-90days-trial-withRAservice:OnDemand-Advanced"
+                                             "Name": "SmartCo.SA:OnDemand-Advanced"
                                          },
                                          "async.ResponseID": sign
                                          }
@@ -191,16 +220,22 @@ def sign():
                             'Content-Type': 'application/json;charset=utf-8'
                            })
         r = json.loads(r.text)
-
         if r["SignResponse"]["Result"]["ResultMajor"] == "urn:oasis:names:tc:dss:1.0:resultmajor:Success":
             signature = base64.b64decode(r["SignResponse"]['SignatureObject']['Base64Signature']['$'])
             pdf.write_signature(signature)
             f = open(pdf.out_filename, "rb")
             data = f.read()
             f.close()
-            return base64.b64encode(data).decode()
+            ret["data"] =  base64.b64encode(data).decode()
+            return ret
         elif "Error" in r["SignResponse"]["Result"]["ResultMajor"]:
-            return str(r)
+            if "$" in r["SignResponse"]["Result"]["ResultMessage"]:
+                ret["err"] =  str(r["SignResponse"]["Result"]["ResultMessage"]["$"])
+            else:
+                ret["err"] =  "Client refused to sign"
+            return ret
+        sleep(1)
+    return ret
 
 @route('/')
 def health():

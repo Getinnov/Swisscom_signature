@@ -21,6 +21,7 @@ RUN pip install --trusted-host pypi.python.org flask
 WORKDIR /test
 RUN pip3 install PyPDF2
 RUN pip3 install requests
+RUN pip3 install phonenumbers==8.12.12
 COPY ./ ./
 
 ENTRYPOINT python3 back/src/server.py

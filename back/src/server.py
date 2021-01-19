@@ -169,7 +169,7 @@ def sign():
     		"@Profile":"http://ais.swisscom.ch/1.1",
     		"OptionalInputs":{
     			"ClaimedIdentity":{
-    				"Name":"SmartCo.SA:OnDemand-Qualified"
+    				"Name":"SmartCo.SA:OnDemand-Qualified-EU"
     			},
     			"SignatureType":"urn:ietf:rfc:3369",
                 "AddTimestamp": {"@Type": "urn:ietf:rfc:3161"},
@@ -222,7 +222,7 @@ def sign():
                                      "@Profile": "http://ais.swisscom.ch/1.1",
                                      "OptionalInputs": {
                                          "ClaimedIdentity": {
-                                             "Name": "SmartCo.SA:OnDemand-Qualified"
+                                             "Name": "SmartCo.SA:OnDemand-Qualified-EU"
                                          },
                                          "async.ResponseID": sign
                                          }

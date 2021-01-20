@@ -222,7 +222,7 @@ def sign():
                                      "@Profile": "http://ais.swisscom.ch/1.1",
                                      "OptionalInputs": {
                                          "ClaimedIdentity": {
-                                             "Name": "SmartCo.SA:Qualified"
+                                             "Name": "SmartCo.SA:OnDemand-Qualified"
                                          },
                                          "async.ResponseID": sign
                                          }

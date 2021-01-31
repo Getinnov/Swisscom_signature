@@ -149,7 +149,6 @@ def setuproute(app):
         		}
         	}
         }
-        return ret
         r = post('https://ais.swisscom.com/AIS-Server/rs/v1.0/sign',
                            cert=('./back/src/secret/smartco.crt', './back/src/secret/smartco.key'),
                            data=dumps(payload),

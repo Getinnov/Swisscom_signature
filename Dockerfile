@@ -1,27 +1,34 @@
-FROM alpine:3.7
+FROM ubuntu:18.04
 
-RUN apk update \
-&& apk upgrade \
-&& apk add --no-cache bash \
-&& apk add --no-cache --virtual=build-dependencies unzip \
-&& apk add --no-cache curl \
-&& apk add --no-cache openjdk8-jre
+WORKDIR /api
+ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apk add --no-cache python3 \
-&& python3 -m ensurepip \
-&& pip3 install --upgrade pip setuptools \
-&& pip3 install --upgrade bottle \
-&& rm -r /usr/lib/python*/ensurepip && \
-if [ ! -e /usr/bin/pip ]; then ln -s pip3 /usr/bin/pip ; fi && \
-if [[ ! -e /usr/bin/python ]]; then ln -sf /usr/bin/python3 /usr/bin/python; fi && \
-rm -r /root/.cache
+RUN apt-get -y update && \
+ apt-get -y upgrade && \
+ apt-get -y dist-upgrade && \
+ apt-get -y autoremove
 
-RUN pip install --trusted-host pypi.python.org flask
+RUN apt-get install -y \
+    openjdk-8-jre \
+    python-dev \
+    python-tk \
+    python-numpy \
+    python3-dev \
+    python3-tk \
+    python3-numpy \
+    libpoppler-cpp-dev \
+    libpython3-all-dev \
+    python3-pip \
+    libpython3-all-dev \
+    python3-all \
+    libzbar0 \
+    poppler-utils
 
-WORKDIR /test
-RUN pip3 install PyPDF2
-RUN pip3 install requests
-RUN pip3 install phonenumbers==8.12.12
-COPY ./ ./
+ RUN mkdir /files
+ RUN pip3 install --upgrade pip
 
-ENTRYPOINT python3 back/src/server.py
+ COPY ./back/requirements.txt ./requirements.txt
+ RUN pip3 install -r requirements.txt
+ COPY ./ ./
+
+ ENTRYPOINT python3 back/src/server.py

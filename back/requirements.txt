@@ -1,0 +1,9 @@
+bottle==0.12.19
+certifi==2020.12.5
+chardet==4.0.0
+idna==2.10
+phonenumbers==8.12.12
+PyPDF2==1.26.0
+requests==2.25.1
+urllib3==1.26.3
+PyMuPDF==1.18.2

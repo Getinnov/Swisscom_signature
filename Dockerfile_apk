@@ -1,0 +1,33 @@
+FROM alpine:3.7
+
+WORKDIR /api
+
+RUN apk update \
+&& apk upgrade \
+&& apk add --no-cache bash \
+&& apk add --no-cache --virtual=build-dependencies unzip \
+&& apk add --no-cache curl \
+&& apk add --no-cache openjdk8-jre \
+&& apk add --no-cache python3 \
+&& python3 -m ensurepip \
+&& pip3 install --upgrade pip setuptools \
+&& rm -r /usr/lib/python*/ensurepip && \
+if [ ! -e /usr/bin/pip ]; then ln -s pip3 /usr/bin/pip ; fi && \
+if [[ ! -e /usr/bin/python ]]; then ln -sf /usr/bin/python3 /usr/bin/python; fi && \
+rm -r /root/.cache
+
+RUN apk add mupdf --no-cache
+RUN apk add gcc --no-cache
+RUN apk add python3-dev --no-cache
+RUN apk add musl-dev --no-cache
+RUN apk add mupdf-dev --no-cache
+RUN apk add --no-cache freetype-dev
+RUN ln -s /usr/include/freetype2/ft2build.h /usr/include/
+RUN ln -s /usr/include/freetype2/freetype /usr/include/
+
+RUN mkdir /files
+COPY ./back/requirements.txt ./requirements.txt
+RUN pip3 install -r requirements.txt
+COPY ./ ./
+
+ENTRYPOINT python3 back/src/server.py

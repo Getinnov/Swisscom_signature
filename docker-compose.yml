@@ -1,17 +1,20 @@
 version: '3'
 networks:
-  traefik_internal:
-    external:
-      name: traefik_internal
+  # traefik_internal:
+  #   external:
+  #     name: traefik_internal
   external_world:
 
 services:
   sign_back:
-    image: sign_back:custom
+    build: .
+    # image: sign_back:custom
     tty: true
     networks:
-      - traefik_internal
+      # - traefik_internal
       - external_world
+    ports:
+      - 8080:8080
     deploy:
       mode: replicated
       replicas: 1
